@@ -171,6 +171,39 @@ function getCaptureWidth(tab) {
     return DESKTOP_CAPTURE_WIDTHS[tab] || DESKTOP_CAPTURE_WIDTHS.rps;
 }
 
+/* ==========================================
+   모바일 저장 시 캔버스 크기 제한 대응
+   -----------------------------------------------------
+   iOS 사파리(및 iOS 웹뷰 계열 브라우저)는 <canvas>의 총 픽셀 수가
+   대략 1600만 px(가로x세로)를 넘으면 에러 없이 이미지 아래쪽을
+   잘라내거나 빈 이미지를 만들어버리는 제약이 있다.
+   기존 코드는 고화질을 위해 scale:4를 고정으로 썼는데, 표 폭
+   1300px(공수는 1280px)에 scale 4를 곱하면 세로가 조금만 길어져도
+   이 상한을 넘어서 버려서, 저장된 이미지의 아래쪽(범례/아이디 등)이
+   잘려 보이는 문제가 있었다.
+   PC(모바일이 아닌 환경)는 브라우저 캔버스 한도가 훨씬 커서 이 문제가
+   없으므로 그대로 scale 4를 쓰고, 모바일에서만 실제 캡처 크기(가로x세로)를
+   기준으로 안전한 배율을 자동 계산해서 사용한다. */
+const CAPTURE_SCALE_DESKTOP = 4;
+const SAFE_CANVAS_AREA = 16000000;   // iOS 사파리 등에서 안전하게 그려지는 총 픽셀 수 상한
+const SAFE_CANVAS_SIDE = 4096;       // 구형 기기 대응용 한 변 픽셀 상한
+const MIN_CAPTURE_SCALE = 2;         // 화질이 너무 나빠지지 않도록 최소 배율은 보장
+
+function isLikelyMobileDevice() {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+        Math.min(window.innerWidth, document.documentElement.clientWidth) <= MOBILE_BREAKPOINT;
+}
+
+function getSafeCaptureScale(width, height) {
+    if (!isLikelyMobileDevice()) return CAPTURE_SCALE_DESKTOP;
+
+    let scale = CAPTURE_SCALE_DESKTOP;
+    scale = Math.min(scale, SAFE_CANVAS_SIDE / width, SAFE_CANVAS_SIDE / height);
+    scale = Math.min(scale, Math.sqrt(SAFE_CANVAS_AREA / (width * height)));
+
+    return Math.max(MIN_CAPTURE_SCALE, scale);
+}
+
 let currentTarget = null; // { type: "cell", td } | { type: "row", index } | { type: "col", index }
 let currentTab = "rps";
 let currentPhotoIndex = null;
@@ -843,15 +876,19 @@ saveBtn.addEventListener("click", async () => {
     area.style.width = `${getCaptureWidth(currentTab)}px`;
 
     try {
+        const captureWidth = Math.max(getCaptureWidth(currentTab), area.scrollWidth);
+        const captureHeight = area.scrollHeight;
+        const captureScale = getSafeCaptureScale(captureWidth, captureHeight);
+
         const canvas = await html2canvas(area, {
             backgroundColor: "#ffffff",
-            scale: 4,
+            scale: captureScale,
             useCORS: true,
             logging: false,
-            width: Math.max(getCaptureWidth(currentTab), area.scrollWidth),
-            height: area.scrollHeight,
-            windowWidth: Math.max(getCaptureWidth(currentTab), area.scrollWidth),
-            windowHeight: area.scrollHeight,
+            width: captureWidth,
+            height: captureHeight,
+            windowWidth: captureWidth,
+            windowHeight: captureHeight,
             /*
              * html2canvas는 textarea 안의 줄바꿈/자동 줄바꿈을 제대로
              * 그리지 못해서(한 줄로만 렌더링되며 잘려 보임), 캡처용으로
