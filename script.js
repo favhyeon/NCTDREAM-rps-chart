@@ -1,5 +1,5 @@
 /* ==========================================
-   듬페스 취향표 (NCT DREAM)
+   드페스 취향표 (NCT DREAM)
 ========================================== */
 
 /* 표(행/열 헤더)에 표시할 멤버 이름 */
@@ -308,7 +308,7 @@ tabRps.addEventListener("click", () => switchTab("rps"));
 tabLr.addEventListener("click", () => switchTab("lr"));
 
 /* ==========================================
-   듬페스 취향표 - 표 생성
+   드페스 취향표 - 표 생성
 ========================================== */
 
 function createTable() {
@@ -378,7 +378,7 @@ function createTable() {
 }
 
 /* ==========================================
-   듬페스 취향표 - 이전/이후 (실행 취소)
+   드페스 취향표 - 이전/이후 (실행 취소)
 ========================================== */
 
 function pushHistory() {
@@ -855,7 +855,7 @@ saveBtn.addEventListener("click", async () => {
         previewImage.src = currentBlobUrl;
         saveModal.classList.remove("hidden");
 
-        const fileLabel = currentTab === "rps" ? "듬페스_취향표" : "공수_취향표";
+        const fileLabel = currentTab === "rps" ? "드페스_취향표" : "공수_취향표";
 
         const link = document.createElement("a");
         link.href = currentBlobUrl;
