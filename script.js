@@ -1,11 +1,8 @@
 /* ==========================================
-   NCT DREAM 취향표
+   듬페스 취향표 (NCT DREAM)
 ========================================== */
 
-/* 마크는 탈퇴 멤버라 항상 배열 첫 자리(인덱스 0)에 두고,
-   아래 markToggle 체크박스로 표에 포함/제외를 켜고 끌 수 있게 했어요. */
-const MARK_INDEX = 0;
-
+/* 표(행/열 헤더)에 표시할 멤버 이름 */
 const members = [
     "마크",
     "런쥔",
@@ -16,21 +13,21 @@ const members = [
     "지성"
 ];
 
-/* 멤버별 본인 이니셜 (본인조합, 행/열 숨기기 문구에 사용)
-   * 사용자가 알려준 값 그대로 사용했어요(맠/런/젠/동/잼/천/지).
-   * 평소 쓰시는 애칭이 따로 있다면 이 배열 값만 바꾸면
-   * 아래 pairNames(커플명 표) 전체에 자동으로 반영돼요. */
+/* 멤버별 본인 이니셜 (닉네임, 행/열 숨기기 문구에 사용) */
 const ownInitials = ["맠", "런", "젠", "동", "잼", "천", "지"];
+
+/* 마크는 탈퇴 멤버라, 체크박스로 7인/6인 구성을 전환할 수 있다. */
+const MARK_INDEX = 0;
 
 /* 멤버별 기본 아바타 색상 (사진 로드 실패 시 대체용) */
 const memberColors = [
-    "#b7e67d",
-    "#87d8ff",
-    "#ffd54f",
-    "#ff9ec8",
+    "#63d1e2",
+    "#8ec9f2",
+    "#ffd166",
+    "#a0e6b1",
     "#c9a4ff",
-    "#ff8a65",
-    "#8bd66d"
+    "#ff9ec8",
+    "#ffb37a"
 ];
 
 /* 멤버별 기본 프로필 사진 (members 배열과 순서 동일) */
@@ -47,13 +44,19 @@ const defaultPhotos = [
 /*
  * 표에 표시할 커플명.
  * [행 멤버][열 멤버] 순서.
- * ownInitials 배열을 그대로 조합해서 만든 기본값이라, 실제 팬덤에서
- * 쓰시는 애칭과 다를 수 있어요. ownInitials만 원하는 값으로 바꾸면
- * 이 표 전체가 자동으로 맞춰지니 필요하면 그렇게 수정해 주세요.
+ * 대각선(본인조합)은 각 멤버 본인의 이니셜을 두 번 합쳐서 만들었어요.
+ * 이니셜(맠·런·젠·동·잼·천·지)을 그대로 이어붙인 기본값이니,
+ * 원하는 조합명으로 자유롭게 바꿔서 쓰시면 돼요.
  */
-const pairNames = ownInitials.map(rowInitial =>
-    ownInitials.map(colInitial => rowInitial + colInitial)
-);
+const pairNames = [
+    ["맠맠", "맠런", "맠젠", "맠동", "맠잼", "맠천", "맠지"],
+    ["런맠", "런런", "런젠", "런동", "런잼", "런천", "런지"],
+    ["젠맠", "젠런", "젠젠", "젠동", "젠잼", "젠천", "젠지"],
+    ["동맠", "동런", "동젠", "동동", "동잼", "동천", "동지"],
+    ["잼맠", "잼런", "잼젠", "잼동", "잼잼", "잼천", "잼지"],
+    ["천맠", "천런", "천젠", "천동", "천잼", "천천", "천지"],
+    ["지맠", "지런", "지젠", "지동", "지잼", "지천", "지지"]
+];
 
 const options = [
     { name: "OTP",      color: "#f7cde0" },
@@ -68,7 +71,7 @@ const options = [
 /* 사용자가 직접 고른 커스텀 색상 (name -> hex).
    여기에 값이 있으면 기본 color 대신 이 색을 쓴다.
    options 배열의 기본값 자체는 절대 덮어쓰지 않는다. */
-const CUSTOM_COLOR_KEY = "nctd-custom-colors";
+const CUSTOM_COLOR_KEY = "nctdream-custom-colors";
 let customColors = JSON.parse(localStorage.getItem(CUSTOM_COLOR_KEY)) || {};
 
 function getOptionColor(option) {
@@ -85,15 +88,27 @@ function resetCustomColors() {
     localStorage.removeItem(CUSTOM_COLOR_KEY);
 }
 
-const STORAGE_KEY = "nctd-wit-rps";
-const LR_STORAGE_KEY = "nctd-lr-rps";
+const STORAGE_KEY = "nctdream-deumpes-rps";
+const LR_STORAGE_KEY = "nctdream-lr-rps";
 const LR_CELL_COUNT = 12;
 
 /* 행/열 개별 숨기기 상태 (멤버 인덱스 기준, rows/cols 따로 관리) */
-const HIDDEN_KEY = "nctd-hidden-members";
+const HIDDEN_KEY = "nctdream-hidden-members";
 const hiddenSaved = JSON.parse(localStorage.getItem(HIDDEN_KEY)) || { rows: [], cols: [] };
 let hiddenRows = new Set(hiddenSaved.rows);
 let hiddenCols = new Set(hiddenSaved.cols);
+
+/* 마크 포함(7인) / 제외(6인) 여부 - 체크박스로 전환.
+   기본값은 켜짐(7인 구성)이라, 꺼본 적 없는 사용자는 "0"이 저장돼 있지 않다. */
+const MARK_INCLUDED_KEY = "nctdream-include-mark";
+let includeMark = localStorage.getItem(MARK_INCLUDED_KEY) !== "0";
+
+/* 마크 토글을 반영해 실제로 화면/이미지에 표시할지 여부를 판단한다.
+   기존의 행/열 개별 숨기기(hiddenRows/hiddenCols)와는 별개로 동작하며,
+   두 조건 모두를 만족해야 화면에 노출된다. */
+function isMemberActive(index) {
+    return includeMark || index !== MARK_INDEX;
+}
 
 function saveHiddenState() {
     localStorage.setItem(HIDDEN_KEY, JSON.stringify({
@@ -104,7 +119,7 @@ function saveHiddenState() {
 
 /* 자공자수(본인조합, 대각선 칸) 표시 여부 - 체크박스로 켜고 끔
    기본값은 켜짐(기존 동작과 동일)이라, 꺼본 적 없는 사용자는 "0"이 저장돼 있지 않다. */
-const SELF_PAIR_KEY = "nctd-include-selfpair";
+const SELF_PAIR_KEY = "nctdream-include-selfpair";
 let includeSelfPair = localStorage.getItem(SELF_PAIR_KEY) !== "0";
 
 /* 대각선(본인×본인) 칸을 표시할지 여부에 따라 실제로 화면/이미지에 그릴 텍스트를 반환한다.
@@ -115,15 +130,6 @@ function getDisplayPairName(rowIndex, colIndex) {
     }
     return pairNames[rowIndex][colIndex];
 }
-
-/* ==========================================
-   마크 포함(7인) 토글
-   마크는 탈퇴 멤버라, 꺼두면 드페스 표/공수 표 양쪽에서
-   마크(MARK_INDEX)를 완전히 제외한 6인 버전으로 보여준다.
-========================================== */
-
-const MARK_TOGGLE_KEY = "nctd-include-mark";
-let includeMark = localStorage.getItem(MARK_TOGGLE_KEY) !== "0";
 
 const table = document.getElementById("chartTable");
 const modal = document.getElementById("modal");
@@ -162,47 +168,7 @@ const scaleWrap = document.getElementById("scaleWrap");
 /* CSS의 @media (max-width: 768px)과 동일한 기준.
    이 폭 이하에서는 JS로 축소하지 않고, 반응형 레이아웃을 그대로 사용한다. */
 const MOBILE_BREAKPOINT = 768;
-/* 드페스는 표 위주라 1300px, 공수는 4-3(7인)/3-3(6인) 2열 카드 배치라
-   1280px을 쓴다. style.css의 #captureArea / #captureAreaLr
-   width 값과 반드시 맞춰줘야 캡처 시 레이아웃이 어긋나지 않는다. */
-const DESKTOP_CAPTURE_WIDTHS = { rps: 1300, lr: 1280 };
-
-function getCaptureWidth(tab) {
-    return DESKTOP_CAPTURE_WIDTHS[tab] || DESKTOP_CAPTURE_WIDTHS.rps;
-}
-
-/* ==========================================
-   모바일 저장 시 캔버스 크기 제한 대응
-   -----------------------------------------------------
-   iOS 사파리(및 iOS 웹뷰 계열 브라우저)는 <canvas>의 총 픽셀 수가
-   대략 1600만 px(가로x세로)를 넘으면 에러 없이 이미지 아래쪽을
-   잘라내거나 빈 이미지를 만들어버리는 제약이 있다.
-   기존 코드는 고화질을 위해 scale:4를 고정으로 썼는데, 표 폭
-   1300px(공수는 1280px)에 scale 4를 곱하면 세로가 조금만 길어져도
-   이 상한을 넘어서 버려서, 저장된 이미지의 아래쪽(범례/아이디 등)이
-   잘려 보이는 문제가 있었다.
-   PC(모바일이 아닌 환경)는 브라우저 캔버스 한도가 훨씬 커서 이 문제가
-   없으므로 그대로 scale 4를 쓰고, 모바일에서만 실제 캡처 크기(가로x세로)를
-   기준으로 안전한 배율을 자동 계산해서 사용한다. */
-const CAPTURE_SCALE_DESKTOP = 4;
-const SAFE_CANVAS_AREA = 16000000;   // iOS 사파리 등에서 안전하게 그려지는 총 픽셀 수 상한
-const SAFE_CANVAS_SIDE = 4096;       // 구형 기기 대응용 한 변 픽셀 상한
-const MIN_CAPTURE_SCALE = 2;         // 화질이 너무 나빠지지 않도록 최소 배율은 보장
-
-function isLikelyMobileDevice() {
-    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
-        Math.min(window.innerWidth, document.documentElement.clientWidth) <= MOBILE_BREAKPOINT;
-}
-
-function getSafeCaptureScale(width, height) {
-    if (!isLikelyMobileDevice()) return CAPTURE_SCALE_DESKTOP;
-
-    let scale = CAPTURE_SCALE_DESKTOP;
-    scale = Math.min(scale, SAFE_CANVAS_SIDE / width, SAFE_CANVAS_SIDE / height);
-    scale = Math.min(scale, Math.sqrt(SAFE_CANVAS_AREA / (width * height)));
-
-    return Math.max(MIN_CAPTURE_SCALE, scale);
-}
+const DESKTOP_CAPTURE_WIDTH = 1100;
 
 let currentTarget = null; // { type: "cell", td } | { type: "row", index } | { type: "col", index }
 let currentTab = "rps";
@@ -293,12 +259,16 @@ if (selfPairToggle) {
     });
 }
 
+/* ==========================================
+   마크 포함(7인) / 제외(6인) 토글
+========================================== */
+
 if (markToggle) {
     markToggle.checked = includeMark;
 
     markToggle.addEventListener("change", () => {
         includeMark = markToggle.checked;
-        localStorage.setItem(MARK_TOGGLE_KEY, includeMark ? "1" : "0");
+        localStorage.setItem(MARK_INCLUDED_KEY, includeMark ? "1" : "0");
         createTable();
         createLrGrid();
     });
@@ -338,16 +308,14 @@ tabRps.addEventListener("click", () => switchTab("rps"));
 tabLr.addEventListener("click", () => switchTab("lr"));
 
 /* ==========================================
-   드페스 취향표 - 표 생성
+   듬페스 취향표 - 표 생성
 ========================================== */
 
 function createTable() {
     table.innerHTML = "";
 
-    const visibleColIndexes = members.map((_, i) => i)
-        .filter(i => !hiddenCols.has(i) && (includeMark || i !== MARK_INDEX));
-    const visibleRowIndexes = members.map((_, i) => i)
-        .filter(i => !hiddenRows.has(i) && (includeMark || i !== MARK_INDEX));
+    const visibleColIndexes = members.map((_, i) => i).filter(i => isMemberActive(i) && !hiddenCols.has(i));
+    const visibleRowIndexes = members.map((_, i) => i).filter(i => isMemberActive(i) && !hiddenRows.has(i));
 
     const head = document.createElement("tr");
     const empty = document.createElement("th");
@@ -410,7 +378,7 @@ function createTable() {
 }
 
 /* ==========================================
-   드페스 취향표 - 이전/이후 (실행 취소)
+   듬페스 취향표 - 이전/이후 (실행 취소)
 ========================================== */
 
 function pushHistory() {
@@ -639,151 +607,116 @@ function defaultAvatar(name, color) {
 function createLrGrid() {
     lrGrid.innerHTML = "";
 
-    const visibleIndexes = members
-        .map((_, i) => i)
-        .filter(i => includeMark || i !== MARK_INDEX);
+    members.forEach((member, index) => {
+        if (!isMemberActive(index)) return;
 
-    getLrColumnGroups(visibleIndexes.length).forEach(groupSize => {
-        const indexesForColumn = visibleIndexes.splice(0, groupSize);
+        const row = document.createElement("div");
+        row.className = "lr-row";
 
-        const colGroup = document.createElement("div");
-        colGroup.className = "lr-col-group";
+        /* 아바타 */
+        const avatar = document.createElement("div");
+        avatar.className = "lr-avatar";
+        avatar.dataset.index = index;
 
-        indexesForColumn.forEach(index => {
-            colGroup.appendChild(buildMemberRow(index));
+        const img = document.createElement("img");
+        img.src = lrData.photos[index] || defaultPhotos[index];
+        img.alt = member;
+        img.onerror = () => {
+            img.onerror = null;
+            img.src = defaultAvatar(member, memberColors[index % memberColors.length]);
+        };
+        avatar.appendChild(img);
+
+        const editHint = document.createElement("div");
+        editHint.className = "avatar-edit";
+        editHint.textContent = "사진 변경";
+        avatar.appendChild(editHint);
+
+        avatar.addEventListener("click", () => {
+            currentPhotoIndex = index;
+            photoInput.value = "";
+            photoInput.click();
         });
 
-        lrGrid.appendChild(colGroup);
+        row.appendChild(avatar);
+
+        /* 오른쪽 내용 (바 + 텍스트) */
+        const content = document.createElement("div");
+        content.className = "lr-content";
+
+        const barWrap = document.createElement("div");
+        barWrap.className = "lr-bar-wrap";
+
+        const labelL = document.createElement("span");
+        labelL.className = "lr-label-l";
+        labelL.textContent = "L";
+
+        const bar = document.createElement("div");
+        bar.className = "lr-bar";
+        bar.dataset.index = index;
+
+        const filledCells = lrData.cells[index] || [];
+
+        for (let c = 0; c < LR_CELL_COUNT; c++) {
+            const cell = document.createElement("div");
+            cell.className = "lr-cell";
+            cell.dataset.cell = c;
+
+            if (filledCells[c]) {
+                cell.classList.add("filled");
+            }
+
+            cell.addEventListener("click", () => {
+                toggleLrCell(index, c, cell);
+            });
+
+            bar.appendChild(cell);
+        }
+
+        const labelR = document.createElement("span");
+        labelR.className = "lr-label-r";
+        labelR.textContent = "R";
+
+        barWrap.appendChild(labelL);
+        barWrap.appendChild(bar);
+        barWrap.appendChild(labelR);
+
+        const textWrap = document.createElement("div");
+        textWrap.className = "lr-text-wrap";
+
+        const text = document.createElement("textarea");
+        text.className = "lr-text";
+        text.rows = 5;
+        text.maxLength = 150;
+        text.placeholder = "자유롭게 적어보세요";
+        text.value = lrData.texts[index] || "";
+        text.dataset.index = index;
+
+        const charCount = document.createElement("span");
+        charCount.className = "lr-char-count";
+        charCount.textContent = `${text.value.length}/150`;
+
+        text.addEventListener("input", () => {
+            lrData.texts[index] = text.value;
+            charCount.textContent = `${text.value.length}/150`;
+            saveLrData();
+            autoResizeTextarea(text);
+        });
+
+        textWrap.appendChild(text);
+        textWrap.appendChild(charCount);
+
+        content.appendChild(barWrap);
+        content.appendChild(textWrap);
+
+        row.appendChild(content);
+
+        lrGrid.appendChild(row);
     });
 
     /* 저장돼 있던 글이 여러 줄이어도 처음부터 잘리지 않도록,
        모든 칸을 한 번씩 실제 내용 높이에 맞춰준다. */
     lrGrid.querySelectorAll(".lr-text").forEach(autoResizeTextarea);
-}
-
-/* 보이는 멤버 수에 맞춰 왼쪽부터 몇 명씩 세로로 쌓을지(열 구성) 정한다.
-   7인(마크 포함) -> 왼쪽부터 4-3, 6인(마크 제외) -> 3-3.
-   그 외 인원수가 되는 경우를 대비해 3명씩 채우는 기본값도 넣어둔다. */
-function getLrColumnGroups(count) {
-    if (count === 7) return [4, 3];
-    if (count === 6) return [3, 3];
-
-    const groups = [];
-    let remaining = count;
-    while (remaining > 0) {
-        const size = Math.min(3, remaining);
-        groups.push(size);
-        remaining -= size;
-    }
-    return groups;
-}
-
-/* 멤버 한 명의 아바타 + L-R 막대 + 텍스트 칸을 만든다. */
-function buildMemberRow(index) {
-    const member = members[index];
-
-    const row = document.createElement("div");
-    row.className = "lr-row";
-
-    /* 아바타 */
-    const avatar = document.createElement("div");
-    avatar.className = "lr-avatar";
-    avatar.dataset.index = index;
-
-    const img = document.createElement("img");
-    img.src = lrData.photos[index] || defaultPhotos[index];
-    img.alt = member;
-    img.onerror = () => {
-        img.onerror = null;
-        img.src = defaultAvatar(member, memberColors[index % memberColors.length]);
-    };
-    avatar.appendChild(img);
-
-    const editHint = document.createElement("div");
-    editHint.className = "avatar-edit";
-    editHint.textContent = "사진 변경";
-    avatar.appendChild(editHint);
-
-    avatar.addEventListener("click", () => {
-        currentPhotoIndex = index;
-        photoInput.value = "";
-        photoInput.click();
-    });
-
-    row.appendChild(avatar);
-
-    /* 오른쪽 내용 (바 + 텍스트) */
-    const content = document.createElement("div");
-    content.className = "lr-content";
-
-    const barWrap = document.createElement("div");
-    barWrap.className = "lr-bar-wrap";
-
-    const labelL = document.createElement("span");
-    labelL.className = "lr-label-l";
-    labelL.textContent = "L";
-
-    const bar = document.createElement("div");
-    bar.className = "lr-bar";
-    bar.dataset.index = index;
-
-    const filledCells = lrData.cells[index] || [];
-
-    for (let c = 0; c < LR_CELL_COUNT; c++) {
-        const cell = document.createElement("div");
-        cell.className = "lr-cell";
-        cell.dataset.cell = c;
-
-        if (filledCells[c]) {
-            cell.classList.add("filled");
-        }
-
-        cell.addEventListener("click", () => {
-            toggleLrCell(index, c, cell);
-        });
-
-        bar.appendChild(cell);
-    }
-
-    const labelR = document.createElement("span");
-    labelR.className = "lr-label-r";
-    labelR.textContent = "R";
-
-    barWrap.appendChild(labelL);
-    barWrap.appendChild(bar);
-    barWrap.appendChild(labelR);
-
-    const textWrap = document.createElement("div");
-    textWrap.className = "lr-text-wrap";
-
-    const text = document.createElement("textarea");
-    text.className = "lr-text";
-    text.rows = 5;
-    text.maxLength = 150;
-    text.placeholder = "자유롭게 적어보세요";
-    text.value = lrData.texts[index] || "";
-    text.dataset.index = index;
-
-    const charCount = document.createElement("span");
-    charCount.className = "lr-char-count";
-    charCount.textContent = `${text.value.length}/150`;
-
-    text.addEventListener("input", () => {
-        lrData.texts[index] = text.value;
-        charCount.textContent = `${text.value.length}/150`;
-        saveLrData();
-        autoResizeTextarea(text);
-    });
-
-    textWrap.appendChild(text);
-    textWrap.appendChild(charCount);
-
-    content.appendChild(barWrap);
-    content.appendChild(textWrap);
-
-    row.appendChild(content);
-
-    return row;
 }
 
 /* 칸에 적은 글이 늘어나면 잘리는 대신 칸 자체가 자연스럽게 늘어나도록.
@@ -869,26 +802,18 @@ saveBtn.addEventListener("click", async () => {
     area.classList.add("capturing");
 
     /* 화면(특히 모바일)에 적용돼 있던 축소/반응형 스타일을 잠시 걷어내고,
-       항상 PC 버전과 동일한 레이아웃(탭별 고정 폭)으로 저장되도록 한다. */
+       항상 PC 버전과 동일한 1100px 레이아웃으로 저장되도록 한다. */
     const prevTransform = area.style.transform;
-    const prevAreaWidth = area.style.width;
     area.style.transform = "none";
-    area.style.width = `${getCaptureWidth(currentTab)}px`;
 
     try {
-        const captureWidth = Math.max(getCaptureWidth(currentTab), area.scrollWidth);
-        const captureHeight = area.scrollHeight;
-        const captureScale = getSafeCaptureScale(captureWidth, captureHeight);
-
         const canvas = await html2canvas(area, {
             backgroundColor: "#ffffff",
-            scale: captureScale,
+            scale: 4,
             useCORS: true,
             logging: false,
-            width: captureWidth,
-            height: captureHeight,
-            windowWidth: captureWidth,
-            windowHeight: captureHeight,
+            windowWidth: DESKTOP_CAPTURE_WIDTH,
+            windowHeight: Math.max(area.scrollHeight, 1600),
             /*
              * html2canvas는 textarea 안의 줄바꿈/자동 줄바꿈을 제대로
              * 그리지 못해서(한 줄로만 렌더링되며 잘려 보임), 캡처용으로
@@ -930,7 +855,7 @@ saveBtn.addEventListener("click", async () => {
         previewImage.src = currentBlobUrl;
         saveModal.classList.remove("hidden");
 
-        const fileLabel = currentTab === "rps" ? "드페스_취향표" : "공수_취향표";
+        const fileLabel = currentTab === "rps" ? "듬페스_취향표" : "공수_취향표";
 
         const link = document.createElement("a");
         link.href = currentBlobUrl;
@@ -944,7 +869,6 @@ saveBtn.addEventListener("click", async () => {
     } finally {
         area.classList.remove("capturing");
         area.style.transform = prevTransform;
-        area.style.width = prevAreaWidth;
         buttonWrap.style.display = "flex";
         tabWrap.style.display = "flex";
         dateToggleWrap.style.display = "flex";
@@ -991,13 +915,12 @@ function fitCaptureArea() {
         return;
     }
 
-    const captureWidth = getCaptureWidth(currentTab);
-    const scale = Math.min(1.2, screenWidth / captureWidth);
+    const scale = Math.min(1, screenWidth / DESKTOP_CAPTURE_WIDTH);
 
     area.style.transformOrigin = "top left";
     area.style.transform = `scale(${scale})`;
 
-    wrap.style.width = `${captureWidth * scale}px`;
+    wrap.style.width = `${DESKTOP_CAPTURE_WIDTH * scale}px`;
     wrap.style.height = `${area.scrollHeight * scale}px`;
 }
 
